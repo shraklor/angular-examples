@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Example Parent-Child Controller</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap-theme.min.css">
+    <style>
+        body {
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body ng-app="example" >
+    <div class="container">
+        <bb-filtered-search ></bb-filtered-search>
+    </div>
+
+    <script language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.14/angular.min.js"></script>
+
+    <script >
+        (function( ng ){
+            'use strict';
+            ng.module('example', []);
+
+        })( angular );
+
+        (function( ng, app) {
+
+            function CriteriaFactory() {
+                return {
+                    createCriteria: createCriteria
+                };
+
+                function createCriteria(key, alt) {
+                    alt = alt || key;
+
+                    var criteria = {};
+                    criteria.keys = [];
+                    criteria.key = key;
+                    criteria.data = [];
+
+
+                    var max = (Math.random() * 20) + 10;
+                    var data = [];
+                    for (var index = 1; index <= max; index++) {
+                        var count = Math.floor(Math.random() * 200) + 1;
+                        data[data.length] = {id: index, name: alt + ' of ' + index, count: count, checked: false};
+                    }
+
+                    criteria.data = data;
+
+                    criteria.add = function(id){
+                        var index = criteria.keys.indexOf(id);
+
+                        if ( index == - 1 )
+                            criteria.keys.push(id);
+                    };
+                    criteria.remove = function(id){
+                        var index = criteria.keys.indexOf(id);
+
+                        if ( index >= 0 )
+                            criteria.keys.splice( index, 1);
+                    };
+
+
+                    /*
+                     criteria._keys = [];
+                     Object.defineProperty(criteria.prototype,
+                     "keys", {
+                     get: function () {
+                     return this._keys;
+                     },
+                     set: function (newValue) {
+                     this._selectedItem = newValue;
+
+                     //Call method on update
+                     this.onSelectedItemChange(this._selectedItem);
+                     },
+                     enumerable: true,
+                     configurable: true
+                     });*/
+
+                    return criteria;
+                }
+
+            }
+
+            app.factory('CriteriaFactory', CriteriaFactory);
+
+        })( angular, angular.module('example') );
+
+        (function( ng, app ){
+            'use strict';
+
+            var FilteredSearch = function(){
+
+                var FilteredSearchController = function(CriteriaFactory){
+                    var self = this;
+
+                    self.criteria = {
+                        hardwareClass: CriteriaFactory.createCriteria('Hardware Class', 'HW Class'),
+                        location: CriteriaFactory.createCriteria('Locations', 'Location')
+                    };
+
+                    console.log('FilteredSearch.criteria', self.criteria);
+                };
+
+                FilteredSearch.$inject = ['CriteriaFactory'];
+
+                return{
+                    restrict: 'E',
+                    scope: {},
+                    controller: FilteredSearchController,
+                    controllerAs: 'fs',
+                    template: '<div class="container" >' +
+                        '<div class="row" >' +
+                            '<div class="col-lg-3" >' +
+                                '<my-filtered-search-list criteria="fs.criteria.hardwareClass" ></my-filtered-search-list>' +
+                                '<my-filtered-search-list criteria="fs.criteria.location" ></my-filtered-search-list>' +
+                            '</div>' +
+                            '<div class="col-lg-9" >' +
+                                '<my-results>In this example the children lists on the left are talking to the parent controller, through the criteria object that the parent is subscribed to</my-results>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                }
+            };
+
+            app.directive('myFilteredSearch', FilteredSearch);
+
+        })( angular, angular.module('example') );
+
+        (function( ng, app ){
+            'use strict';
+
+            var FilteredSearchList = function(){
+                var FilteredSearchListController = function(){
+                    var self = this;
+
+                    console.log( 'FilteredSearchList.FilteredSearchListController', self);
+                    self.caption = self.criteria.key;
+                    self.items = self.criteria.data;
+
+                    self.Update = function(item){
+                        if (item.checked === false) {
+                            self.criteria.remove(item.id);
+                        } else if ( item.checked === true) {
+                            self.criteria.add(item.id);
+                        }
+
+                        console.log('updating->self.criteria.keys', self.criteria.keys);
+                    }
+                };
+
+                return{
+                    restrict: 'E',
+                    require: '^myFilteredSearch',
+                    scope: {
+                        criteria: '='
+                    },
+                    bindToController: true,
+                    controller: FilteredSearchListController,
+                    controllerAs: 'fsl',
+                    template: '<div>' +
+                        '<h4>{{ fsl.caption }}</h4>' +
+                        '<div class="filtered-list" >' +
+                            '<ul class="list-group checked-list-box" >' +
+                                '<li class="list-group-item" ng-repeat="item in ::fsl.items" >' +
+                                    '<input type="checkbox" ng-model="item.checked" ng-change="fsl.Update(item);" />' +
+                                    '&nbsp;{{ item.name }}&nbsp;({{ item.count }})' +
+                                '</li>' +
+                            '</ul>' +
+                        '</div>' +
+                    '</div>'
+                }
+            };
+
+            app.directive('myFilteredSearchList', FilteredSearchList);
+
+        })( angular, angular.module('example') );
+
+    </script>
+
+    <script language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.11.2/ui-bootstrap-tpls.min.js"></script>
+</body>
+</html>
