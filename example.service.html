@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>GitHub Angular Simple Search</title>
+</head>
+<body ng-app="example" >
+
+<github-search></github-search>
+<script language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.14/angular.min.js"></script>
+
+<script language="javascript">
+
+    // defines the application
+    (function (ng) {
+        'use strict';
+
+        var app = ng.module('example', []);
+
+        var ConfigurationStuff = function ($httpProvider) {
+            $httpProvider.defaults.useXDomain = true;
+            delete $httpProvider.defaults.headers.common['X-Requested-With'];
+        }
+
+        ConfigurationStuff.$inject = ['$httpProvider'];
+
+        app.config(ConfigurationStuff);
+
+
+    })(angular);
+
+    // create a basic HTTP service
+    (function (ng, app) {
+        'use strict';
+
+        var HttpService = function ($q, $http) {
+            var self = this;
+
+            var httpError = function (response) {
+                if ((response) && (response.status) && (response.status == 404)) {
+                    response = 'tried to get to: ' + decodeURIComponent(response.config.url) + ' but it wasn\'t there';
+                }
+
+                return ($q.reject(response));
+            };
+
+            var httpSuccess = function (response) {
+                if (response.status == 200) {
+                    return (response);
+                }
+
+                if (response.status == 401) {
+                    return httpError('Web server not authorized');
+                }
+
+                return self.httpError(response);
+            };
+
+            self.Get = function (url) {
+                return $http.get(url, { withCredentials: false }).then(httpSuccess, httpError);
+            }
+
+            self.Post = function (url, data) {
+                return $http.post(url, JSON.stringify(data), { withCredentials: false }).then(httpSuccess, httpError);
+            }
+
+            self.Put = function (url, data) {
+                return $http.post(url, JSON.stringify(data), { withCredentials: false }).then(httpSuccess, httpError);
+            }
+
+            self.Patch = function (url, data) {
+                return $http.post(url, JSON.stringify(data), { withCredentials: false }).then(httpSuccess, httpError);
+            }
+        }
+
+        HttpService.$inject = ['$q', '$http'];
+        app.service('HttpService', HttpService);
+
+    })(angular, angular.module('example'));
+
+    // github service
+    (function (ng, app) {
+        'use strict';
+
+        var GithubService = function ($q, HttpService) {
+            var self = this;
+
+            var url = 'https://api.github.com/search/repositories?q=';
+
+            var githubError = function (response) {
+                if ((response) && (response.status) && (response.status == 404)) {
+                    response = 'tried to get to: ' + decodeURIComponent(response.config.url) + ' but it wasn\'t there';
+                }
+
+                return ($q.reject(response));
+            };
+
+            var githubSuccess = function (response) {
+                if (response.status == 200) {
+                    return (response);
+                }
+
+                if (response.status == 401) {
+                    return httpError('not authorized');
+                }
+
+                return self.httpError(response);
+            };
+
+            self.Search = function (tag) {
+
+                return HttpService.Get(url + encodeURIComponent(tag)).then(githubSuccess, githubError);
+            }
+
+        }
+
+        GithubService.$inject = ['$q', 'HttpService'];
+        app.service('GithubService', GithubService);
+
+    })(angular, angular.module('example'));
+
+    // form for searching (directive)
+    (function (ng, app) {
+        'use strict';
+
+        var GithubSearchDirective = function () {
+
+            var GithubSearchController = function (GithubService) {
+                var self = this;
+
+                self.search = 'angular nvd3 directives';
+
+                var Results = function (response) {
+                    console.log('GithubSearchController->Search->Results', response);
+                }
+
+                var BadResults = function (response) {
+                    console.log('GithubSearchController->Search->BadResults', response);
+                }
+
+                self.Search = function () {
+                    console.log('GithubSearchController.Search(' + self.search + ')');
+                    GithubService.Search(self.search).then(Results, BadResults);
+                };
+            }
+
+            GithubSearchController.$inject = ['GithubService'];
+
+            return {
+                replace: true,
+                template: '<div>' +
+                '<input type="text" ng-model="git.search" value="" />' +
+                '<input type="button" ng-click="git.Search()" value="Search" />' +
+                '</div>',
+                scope: {},
+                controller: GithubSearchController,
+                controllerAs: 'git'
+            }
+        };
+
+        app.directive('githubSearch', GithubSearchDirective);
+
+    })(angular, angular.module('example'));
+
+</script>
+</body>
+</html>

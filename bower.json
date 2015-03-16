@@ -1,0 +1,22 @@
+{
+  "name": "Custom-Directives",
+  "version": "0.0.0",
+  "authors": [
+    "Brad Vanselous <bvanselous@domain.com>"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "angular": "~1.3.0",
+    "bootstrap-css": "~3.2.0",
+    "ui-bootstrap": "latest",
+    "font-awesome": "~4.3.0",
+    "firebase": "~2.2.2",
+    "angularjs-nvd3-directives": "latest",
+    "ng-stats": "~2.1.2",
+    "ui-bootstrap": "~0.11.2"
+  },
+  "resolutions": {
+    "angular": "~1.3.0",
+    "d3": "~3.4.1"
+  }
+}
