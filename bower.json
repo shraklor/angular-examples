@@ -1,8 +1,11 @@
 {
-  "name": "Angular Examples",
-  "version": "0.0.1",
+  "name": "angular-examples",
+  "version": "0.1.0",
+  "homepage": "https://github.com/shraklor/angular-examples",
+  "description": "some simple examples for reference later",
   "authors": [
-    "Brad Vanselous <brad.source+github@gmail.com>"
+    { "name": "Brad Vanselous",
+      "homepage": "https://twitter.com/bradvan"}
   ],
   "license": "MIT",
   "dependencies": {
@@ -12,8 +15,11 @@
     "firebase": "~2.2.2",
     "angularjs-nvd3-directives": "latest",
     "ng-stats": "~2.1.2",
-    "ui-bootstrap": "~0.11.2"
+    "angular-bootstrap": "~0.11.2"
   },
+  "ignore":[
+    "**/.*"
+  ],
   "resolutions": {
     "angular": "~1.3.0",
     "d3": "~3.4.1"
