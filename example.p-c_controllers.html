@@ -26,10 +26,73 @@
 
         (function( ng, app) {
 
-            function CriteriaFactory() {
+            var AbstractSubscriptionModel = function (){
+                var self = this;
+                self.subscribers = [];
+            };
+
+            AbstractSubscriptionModel.prototype.subscribe = function(callback){
+                var index = this.subscribers.indexOf(callback);
+
+                if ( index == -1 ){
+                    this.subscribers.push(callback);
+                }
+            };
+
+            AbstractSubscriptionModel.prototype.unsubscribe = function(callback){
+                var index = this.subscribers.indexOf(callback);
+
+                if ( index >= 0 ){
+                    this.subscribers.splice(index, 1);
+                }
+            };
+
+            var KeyValueFilterCollection = function(loader, key, caption){
+                var self = this;
+                self.data = loader();
+                self.key = key;
+                self.caption = caption;
+            };
+
+            KeyValueFilterCollection.prototype = Object.create(new AbstractSubscriptionModel());
+
+            KeyValueFilterCollection.prototype.checked = function(item){
+                item.checked = true;
+
+                for(var index = 0; index < this.subscribers.length; index++){
+                    var cb = this.subscribers[index];
+                    cb(item);
+                }
+            };
+
+            KeyValueFilterCollection.prototype.unchecked = function(item){
+                item.checked = false;
+
+                for(var index = 0; index < this.subscribers.length; index++){
+                    var cb = this.subscribers[index];
+                    cb(item);
+                }
+            };
+
+            var FilterCriteria = function(){
+                var self = this;
+                self.onDataChange = function(item){
+
+                }
+            }
+
+            FilterCriteria.prototype.Add = function( key, keyvaluefiltercollection){
+                keyvaluefiltercollection.subscribe(this.onDataChange);
+                this[key] = keyvaluefiltercollection.data;
+            };
+
+            var FilterCriteriaFactory = function () {
                 return {
-                    createCriteria: createCriteria
+                    FilterCriteria: FilterCriteria,
+                    KeyValueFilterCollection: KeyValueFilterCollection
                 };
+
+
 
                 function createCriteria(key, alt) {
                     alt = alt || key;
@@ -85,6 +148,8 @@
 
             }
 
+            FilterCriteriaFactory.$inject = [];
+
             app.factory('CriteriaFactory', CriteriaFactory);
 
         })( angular, angular.module('example') );
@@ -94,18 +159,30 @@
 
             var FilteredSearch = function(){
 
-                var FilteredSearchController = function(CriteriaFactory){
+                var FilteredSearchController = function(FilterCriteriaFactory){
                     var self = this;
 
-                    self.criteria = {
-                        hardwareClass: CriteriaFactory.createCriteria('Hardware Class', 'HW Class'),
-                        location: CriteriaFactory.createCriteria('Locations', 'Location')
-                    };
+                    var mapping = [
+                        {},
+                        {},
+                        {}
+                    ]
+
+
+                    self.criteria = new FilterCriteriaFactory.FilterCriteria()
+
+                    foreach( var keys in mapping){
+                        var fc = new FilterCriteriaFactory.KeyValueFilterCollection( httpService.GetData(keys.key), keys.key, keys.caption );
+                        self.criteria.Add(keys.key, fc);
+                    }
+
+
+
 
                     console.log('FilteredSearch.criteria', self.criteria);
                 };
 
-                FilteredSearch.$inject = ['CriteriaFactory'];
+                FilteredSearch.$inject = ['FilterCriteriaFactory'];
 
                 return{
                     restrict: 'E',
