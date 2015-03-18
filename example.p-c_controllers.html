@@ -31,50 +31,77 @@
                 self.subscribers = [];
             };
 
-            AbstractSubscriptionModel.prototype.subscribe = function(callback){
-                var index = this.subscribers.indexOf(callback);
+            AbstractSubscriptionModel.prototype.subscribe = function(callback, event){
+                event = event || 'change';
+
+                var subscriber = { callback: callback, event: event };
+                var index = this.subscribers.indexOf(subscriber);
 
                 if ( index == -1 ){
-                    this.subscribers.push(callback);
+                    this.subscribers.push(subscriber);
                 }
             };
 
-            AbstractSubscriptionModel.prototype.unsubscribe = function(callback){
-                var index = this.subscribers.indexOf(callback);
+            AbstractSubscriptionModel.prototype.unsubscribe = function(callback, event){
+                event = event || 'change';
+
+                var subscriber = { callback: callback, event: event };
+                var index = this.subscribers.indexOf(subscriber);
 
                 if ( index >= 0 ){
                     this.subscribers.splice(index, 1);
                 }
             };
 
+            AbstractSubscriptionModel.prototype.raise = function(o, event){
+                event = event || 'change';
+
+
+                for(var index = 0; index < this.subscribers.length; index++ ){
+                    var subscriber = this.subscribers[index];
+
+                    if ( subscriber.event == event ){
+                        subscriber.callback(o, event);
+                    }
+                }
+
+            };
+
+
             var KeyValueFilterCollection = function(loader, key, caption){
+                AbstractSubscriptionModel.call(this)
                 var self = this;
-                self.data = loader();
+                self.dataPromise = loader();
                 self.key = key;
                 self.caption = caption;
+                self.selected = [];
             };
 
             KeyValueFilterCollection.prototype = Object.create(new AbstractSubscriptionModel());
 
             KeyValueFilterCollection.prototype.checked = function(item){
-                item.checked = true;
+                var index = this.selected.indexOf(item);
 
-                for(var index = 0; index < this.subscribers.length; index++){
-                    var cb = this.subscribers[index];
-                    cb(item);
+                if ( index == -1 ){
+                    this.selected.push(item);
+                    this.raise( item, 'checked');
                 }
             };
 
             KeyValueFilterCollection.prototype.unchecked = function(item){
-                item.checked = false;
+                var index = this.selected.indexOf(item);
 
-                for(var index = 0; index < this.subscribers.length; index++){
-                    var cb = this.subscribers[index];
-                    cb(item);
+                if ( index != -1 ){
+                    this.selected.splice(index, 1);
+                    this.raise( item, 'unchecked');
                 }
             };
 
+
+
             var FilterCriteria = function(){
+                AbstractSubscriptionModel.call(this)
+
                 var self = this;
                 self.onDataChange = function(item){
 
@@ -82,7 +109,9 @@
             }
 
             FilterCriteria.prototype.Add = function( key, keyvaluefiltercollection){
-                keyvaluefiltercollection.subscribe(this.onDataChange);
+                keyvaluefiltercollection.subscribe(this.onDataChange, 'checked');
+                keyvaluefiltercollection.subscribe(this.onDataChange, 'unchecked');
+
                 this[key] = keyvaluefiltercollection.data;
             };
 
@@ -162,19 +191,18 @@
                 var FilteredSearchController = function(FilterCriteriaFactory){
                     var self = this;
 
-                    var mapping = [
-                        {},
-                        {},
-                        {}
-                    ]
+                    var elements = [{ key: 'x', caption: 'caption for X'},
+                        { key: 'y', caption: 'caption for Y'},
+                        { key: 'z', caption: 'caption for Z'},
+                        { key: 'p', caption: 'caption for P'}]
 
 
                     self.criteria = new FilterCriteriaFactory.FilterCriteria()
 
-                    foreach( var keys in mapping){
-                        var fc = new FilterCriteriaFactory.KeyValueFilterCollection( httpService.GetData(keys.key), keys.key, keys.caption );
-                        self.criteria.Add(keys.key, fc);
-                    }
+                    elements.map(function(value){
+                        var fc = new FilterCriteriaFactory.KeyValueFilterCollection( httpService.GetData(value.key), value.key, value.caption );
+                        self.criteria.Add(value.key, fc);
+                    })
 
 
 
@@ -219,10 +247,10 @@
                     self.items = self.criteria.data;
 
                     self.Update = function(item){
-                        if (item.checked === false) {
-                            self.criteria.remove(item.id);
-                        } else if ( item.checked === true) {
-                            self.criteria.add(item.id);
+                        if (item.checked == false) {
+                            self.criteria.checked(item);
+                        } else {
+                            self.criteria.unchaecked(item);
                         }
 
                         console.log('updating->self.criteria.keys', self.criteria.keys);
