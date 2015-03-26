@@ -10,207 +10,213 @@
         }
     </style>
 </head>
-<body ng-app="example" >
+<body>
     <div class="container">
-        <bb-filtered-search ></bb-filtered-search>
+        <my-filtered-search ></my-filtered-search>
     </div>
 
     <script language="javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.14/angular.min.js"></script>
 
     <script >
+        // application definition
         (function( ng ){
             'use strict';
-            ng.module('example', []);
+            var app = ng.module('example', []);
+
+            angular.element(document).ready(function() {
+                angular.bootstrap(document, ['example']);
+            });
 
         })( angular );
-
+        // service
         (function( ng, app) {
 
-            var AbstractSubscriptionModel = function (){
-                var self = this;
-                self.subscribers = [];
-            };
+            var httpService = function ( $q, $timeout) {
 
-            AbstractSubscriptionModel.prototype.subscribe = function(callback, event){
-                event = event || 'change';
+                function getData(key) {
+                    var deferred = $q.defer();
 
-                var subscriber = { callback: callback, event: event };
-                var index = this.subscribers.indexOf(subscriber);
+                    var timer = Math.random() * (2500 - 500) + 500;
 
-                if ( index == -1 ){
-                    this.subscribers.push(subscriber);
-                }
-            };
+                    $timeout(function() {
+                        deferred.notify('generating data for ' + key + '.');
 
-            AbstractSubscriptionModel.prototype.unsubscribe = function(callback, event){
-                event = event || 'change';
+                        var max = Math.random() * (25 - 10) + 10;
+                        var data = [];
+                        for (var index = 1; index <= max; index++) {
+                            var count = Math.floor(Math.random() * 200) + 1;
+                            data[data.length] = {id: index, name: key + ' of ' + index, count: count, checked: false};
+                        }
 
-                var subscriber = { callback: callback, event: event };
-                var index = this.subscribers.indexOf(subscriber);
+                        deferred.resolve(data);
+                    }, timer);
 
-                if ( index >= 0 ){
-                    this.subscribers.splice(index, 1);
-                }
-            };
-
-            AbstractSubscriptionModel.prototype.raise = function(o, event){
-                event = event || 'change';
-
-
-                for(var index = 0; index < this.subscribers.length; index++ ){
-                    var subscriber = this.subscribers[index];
-
-                    if ( subscriber.event == event ){
-                        subscriber.callback(o, event);
-                    }
+                    return deferred.promise;
                 }
 
-            };
-
-
-            var KeyValueFilterCollection = function(loader, key, caption){
-                AbstractSubscriptionModel.call(this)
-                var self = this;
-                self.dataPromise = loader();
-                self.key = key;
-                self.caption = caption;
-                self.selected = [];
-            };
-
-            KeyValueFilterCollection.prototype = Object.create(new AbstractSubscriptionModel());
-
-            KeyValueFilterCollection.prototype.checked = function(item){
-                var index = this.selected.indexOf(item);
-
-                if ( index == -1 ){
-                    this.selected.push(item);
-                    this.raise( item, 'checked');
-                }
-            };
-
-            KeyValueFilterCollection.prototype.unchecked = function(item){
-                var index = this.selected.indexOf(item);
-
-                if ( index != -1 ){
-                    this.selected.splice(index, 1);
-                    this.raise( item, 'unchecked');
-                }
-            };
-
-
-
-            var FilterCriteria = function(){
-                AbstractSubscriptionModel.call(this)
-
-                var self = this;
-                self.onDataChange = function(item){
-
-                }
+                return {
+                    getData: getData
+                };
             }
 
-            FilterCriteria.prototype.Add = function( key, keyvaluefiltercollection){
-                keyvaluefiltercollection.subscribe(this.onDataChange, 'checked');
-                keyvaluefiltercollection.subscribe(this.onDataChange, 'unchecked');
+            httpService.$inject = ['$q', '$timeout'];
 
-                this[key] = keyvaluefiltercollection.data;
-            };
+            app.service('httpService', httpService);
 
-            var FilterCriteriaFactory = function () {
+        })( angular, angular.module('example') );
+        // models
+        (function( ng, app) {
+
+            var FilterCriteriaFactory = function ($q) {
+
+                var AbstractSubscriptionModel = function (){
+                    var subscribers = [];
+
+                    function construct(){
+
+                    }
+
+                    construct.prototype.subscribe = function(callback, event){
+                        event = event || 'change';
+
+                        var subscriber = { callback: callback, event: event };
+                        var index = subscribers.indexOf(subscriber);
+
+                        if ( index == -1 ){
+                            subscribers.push(subscriber);
+                        }
+                    };
+
+                    construct.prototype.unsubscribe = function(callback, event){
+                        event = event || 'change';
+
+                        var subscriber = { callback: callback, event: event };
+                        var index = subscribers.indexOf(subscriber);
+
+                        if ( index >= 0 ){
+                            subscribers.splice(index, 1);
+                        }
+                    };
+
+                    construct.prototype.raise = function(o, event){
+                        event = event || 'change';
+
+                        for(var index = 0; index < subscribers.length; index++ ){
+                            var subscriber = subscribers[index];
+
+                            if ( subscriber.event == event ){
+                                subscriber.callback(o, event);
+                            }
+                        }
+
+                    };
+
+                    return construct;
+                }();
+
+                var KeyValueFilterCollection = function(loader, key, caption){
+                    // AbstractSubscriptionModel.call(this)
+                    var selected = [];
+
+                    function construct(loader, key, caption){
+                        function onDataPromise(data){
+                            // console.log(this);
+                            this.data = data;
+                            construct.prototype.raise.call(this, data, 'loaded');
+                        }
+
+                        loader.then(onDataPromise);
+                        this.key = key;
+                        this.caption = caption;
+                        this.data = [];
+                    }
+
+                    construct.prototype = Object.create(AbstractSubscriptionModel.prototype);
+
+                    construct.prototype.checked = function(item){
+                        var index = selected.indexOf(item);
+
+                        if ( index == -1 ){
+                            selected.push(item);
+                            construct.prototype.raise.call(this, item, 'checked');
+                        }
+                    };
+
+                    construct.prototype.unchecked = function(item){
+                        var index = selected.indexOf(item);
+
+                        if ( index != -1 ){
+                            selected.splice(index, 1);
+                            construct.prototype.raise.call(this, item, 'unchecked');
+                        }
+                    };
+
+                    return construct;
+                }();
+
+                var FilterCriteria = function(){
+                    // AbstractSubscriptionModel.call(this)
+                    var onDataChange = function(item){
+                        console.log('FilterCriteria->onDataChange', item)
+                    };
+
+                    var onDataLoaded = function(kvfc){
+                        console.log('FilterCriteria->onDataLoaded', kvfc)
+                    };
+
+                    function construct(){
+
+                    }
+
+                    construct.prototype = Object.create(AbstractSubscriptionModel.prototype);
+                    construct.constructor = construct;
+
+                    construct.prototype.Add = function( keyvaluefiltercollection ){
+                        keyvaluefiltercollection.subscribe(onDataChange, 'checked');
+                        keyvaluefiltercollection.subscribe(onDataChange, 'unchecked');
+                        keyvaluefiltercollection.subscribe(onDataLoaded, 'loaded');
+
+                        this[keyvaluefiltercollection.key] = keyvaluefiltercollection;
+
+                        console.log('FilterCriteria->Add', keyvaluefiltercollection)
+                    };
+
+                    return construct;
+                }();
+
                 return {
                     FilterCriteria: FilterCriteria,
                     KeyValueFilterCollection: KeyValueFilterCollection
                 };
-
-
-
-                function createCriteria(key, alt) {
-                    alt = alt || key;
-
-                    var criteria = {};
-                    criteria.keys = [];
-                    criteria.key = key;
-                    criteria.data = [];
-
-
-                    var max = (Math.random() * 20) + 10;
-                    var data = [];
-                    for (var index = 1; index <= max; index++) {
-                        var count = Math.floor(Math.random() * 200) + 1;
-                        data[data.length] = {id: index, name: alt + ' of ' + index, count: count, checked: false};
-                    }
-
-                    criteria.data = data;
-
-                    criteria.add = function(id){
-                        var index = criteria.keys.indexOf(id);
-
-                        if ( index == - 1 )
-                            criteria.keys.push(id);
-                    };
-                    criteria.remove = function(id){
-                        var index = criteria.keys.indexOf(id);
-
-                        if ( index >= 0 )
-                            criteria.keys.splice( index, 1);
-                    };
-
-
-                    /*
-                     criteria._keys = [];
-                     Object.defineProperty(criteria.prototype,
-                     "keys", {
-                     get: function () {
-                     return this._keys;
-                     },
-                     set: function (newValue) {
-                     this._selectedItem = newValue;
-
-                     //Call method on update
-                     this.onSelectedItemChange(this._selectedItem);
-                     },
-                     enumerable: true,
-                     configurable: true
-                     });*/
-
-                    return criteria;
-                }
-
             }
 
-            FilterCriteriaFactory.$inject = [];
+            FilterCriteriaFactory.$inject = ['$q'];
 
-            app.factory('CriteriaFactory', CriteriaFactory);
+            app.factory('FilterCriteriaFactory', FilterCriteriaFactory);
 
         })( angular, angular.module('example') );
-
+        // parent
         (function( ng, app ){
             'use strict';
 
             var FilteredSearch = function(){
-
-                var FilteredSearchController = function(FilterCriteriaFactory){
+                var FilteredSearchController = function(FilterCriteriaFactory, httpService){
                     var self = this;
 
-                    var elements = [{ key: 'x', caption: 'caption for X'},
-                        { key: 'y', caption: 'caption for Y'},
-                        { key: 'z', caption: 'caption for Z'},
-                        { key: 'p', caption: 'caption for P'}]
+                    var elements = [{ key: 'model', caption: 'caption for Model'},
+                        { key: 'location', caption: 'caption for Location'}];
 
-
-                    self.criteria = new FilterCriteriaFactory.FilterCriteria()
+                    self.criteria = new FilterCriteriaFactory.FilterCriteria();
 
                     elements.map(function(value){
-                        var fc = new FilterCriteriaFactory.KeyValueFilterCollection( httpService.GetData(value.key), value.key, value.caption );
-                        self.criteria.Add(value.key, fc);
-                    })
-
-
-
+                        var fc = new FilterCriteriaFactory.KeyValueFilterCollection( httpService.getData(value.key), value.key, value.caption );
+                        self.criteria.Add(fc);
+                    });
 
                     console.log('FilteredSearch.criteria', self.criteria);
                 };
 
-                FilteredSearch.$inject = ['FilterCriteriaFactory'];
+                FilteredSearch.$inject = ['FilterCriteriaFactory', 'httpService'];
 
                 return{
                     restrict: 'E',
@@ -220,8 +226,8 @@
                     template: '<div class="container" >' +
                         '<div class="row" >' +
                             '<div class="col-lg-3" >' +
-                                '<my-filtered-search-list criteria="fs.criteria.hardwareClass" ></my-filtered-search-list>' +
-                                '<my-filtered-search-list criteria="fs.criteria.location" ></my-filtered-search-list>' +
+                                '<my-filtered-search-list criteria="fs.criteria[\'model\']" ></my-filtered-search-list>' +
+                                '<my-filtered-search-list criteria="fs.criteria[\'location\']" ></my-filtered-search-list>' +
                             '</div>' +
                             '<div class="col-lg-9" >' +
                                 '<my-results>In this example the children lists on the left are talking to the parent controller, through the criteria object that the parent is subscribed to</my-results>' +
@@ -234,7 +240,7 @@
             app.directive('myFilteredSearch', FilteredSearch);
 
         })( angular, angular.module('example') );
-
+        // child
         (function( ng, app ){
             'use strict';
 
@@ -242,18 +248,23 @@
                 var FilteredSearchListController = function(){
                     var self = this;
 
+                    var onDataLoad = function(data){
+                        self.items = data;
+                    };
+
                     console.log( 'FilteredSearchList.FilteredSearchListController', self);
-                    self.caption = self.criteria.key;
                     self.items = self.criteria.data;
+                    self.criteria.subscribe(onDataLoad, 'loaded');
+                    self.caption = self.criteria.caption || self.criteria.key;
 
                     self.Update = function(item){
                         if (item.checked == false) {
                             self.criteria.checked(item);
                         } else {
-                            self.criteria.unchaecked(item);
+                            self.criteria.unchecked(item);
                         }
 
-                        console.log('updating->self.criteria.keys', self.criteria.keys);
+                        console.log('updating->self.criteria.keys', self.criteria.key);
                     }
                 };
 
@@ -270,7 +281,7 @@
                         '<h4>{{ fsl.caption }}</h4>' +
                         '<div class="filtered-list" >' +
                             '<ul class="list-group checked-list-box" >' +
-                                '<li class="list-group-item" ng-repeat="item in ::fsl.items" >' +
+                                '<li class="list-group-item" ng-repeat="item in fsl.items" >' +
                                     '<input type="checkbox" ng-model="item.checked" ng-change="fsl.Update(item);" />' +
                                     '&nbsp;{{ item.name }}&nbsp;({{ item.count }})' +
                                 '</li>' +
